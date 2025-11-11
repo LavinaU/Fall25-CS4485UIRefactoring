@@ -53,16 +53,23 @@ public class Javafx extends Application {
     private static Scene historyScene;
     private static ObservableMap<String, SourceFile> importedFiles = FXCollections.observableHashMap();
 
+    private Scene mainScene;
+    private Scene historyScene;
+
+    private Scene buildMainScene(Stage stage) {
+
+    }
+
+    private Scene buildHistoryScene(Stage stage) {
+
+    }
+
     @Override
     public void start(Stage stage) {
+        mainScene = buildMainScene(stage);
+        historyScene = buildHistoryScene(stage);
 
-        // Home Scene
-        createHomeScene(stage);
-
-        // Scene 2
-        createHistoryScene(stage);
-
-        stage.setScene(homeScene);
+        stage.setScene(mainScene);
         stage.setTitle("Sentence Builder");
         stage.show();
     }
@@ -71,37 +78,6 @@ public class Javafx extends Application {
         launch();
     }
 
-    public static VBox inputRow(){
-        Label label = new Label("Enter a Starting Word:");
-        TextField textField = new TextField();
-        textField.setPrefWidth(150);
-        textField.textProperty().addListener((observableValue, oldValue, newValue) -> {
-            String[] words = newValue.trim().split("\\s+");
-            if (words.length > MAX_WORDS){
-                textField.setText(words[0]);
-            }
-        });
-
-        HBox inputFields = new HBox(10, label, textField);
-        inputFields.setAlignment(Pos.CENTER);
-
-        Button button = new Button("Submit");
-
-        VBox inputRow = new VBox(5, inputFields, button);
-        inputRow.setAlignment(Pos.CENTER);
-
-        return inputRow;
-    }
-
-    public static TextArea outputRow(){
-        TextArea output = new TextArea("Lorem ipsum dolor sit amet, consectetur");
-        output.setEditable(false);
-        output.setWrapText(true);
-        output.setMaxWidth(300);
-        output.setPrefHeight(300);
-        
-        return output;
-    }
 
     public static void selectFile(Stage stage){
         fileChooser.getExtensionFilters().addAll(
@@ -131,107 +107,5 @@ public class Javafx extends Application {
         }
     }
 
-    public static void createHomeScene(Stage stage){
-        // Upload File Row
-        Button uploadButton = new Button("Upload a Text FIle");
-        uploadButton.setOnAction(actionEvent -> {
-            selectFile(stage);
-        });
 
-        // Input Row
-        VBox inputRow = inputRow();
-
-        // Output Row
-        TextArea output = outputRow();
-
-        // Swap Scene Button
-        Button toScene2Button = new Button("To Upload History");
-        toScene2Button.setOnAction(e -> stage.setScene(historyScene));
-
-        // Main
-        VBox root = new VBox(20, uploadButton, inputRow, output, toScene2Button);
-        root.setAlignment(Pos.CENTER);
-
-        StackPane container = new StackPane(root);
-        container.setAlignment(Pos.CENTER);
-
-        homeScene = new Scene(container, 640, 480);
-    }
-
-    public static void createHistoryScene(Stage stage){
-        TableView<SourceFile> importTable = createImportTable();
-
-        Button toHomeSceneButton = new Button("To Sentence Builder");
-        toHomeSceneButton.setOnAction(e -> stage.setScene(homeScene));
-
-        VBox root = new VBox(20, importTable, toHomeSceneButton);
-        root.setAlignment(Pos.CENTER);
-
-        StackPane container = new StackPane(root);
-        container.setAlignment(Pos.CENTER);
-
-        historyScene = new Scene(container, 640, 480);
-    }
-
-    public static TableView<SourceFile> createImportTable(){
-        TableView<SourceFile> importTable = new TableView<>();
-
-        // Columns
-        TableColumn<SourceFile, String> fileNameCol = new TableColumn<>("File Name");
-        fileNameCol.setCellValueFactory(cellData ->
-                new ReadOnlyStringWrapper(cellData.getValue().fileName()));
-
-        TableColumn<SourceFile, Integer> wordCountCol = new TableColumn<>("Word Count");
-        wordCountCol.setCellValueFactory(cellData ->
-                new ReadOnlyObjectWrapper<>(cellData.getValue().wordCount()));
-
-        TableColumn<SourceFile, Timestamp> timestampCol = new TableColumn<>("Import Time");
-        timestampCol.setCellValueFactory(cellData ->
-                new ReadOnlyObjectWrapper<>(cellData.getValue().importTimestamp()));
-
-        importTable.getColumns().addAll(fileNameCol, wordCountCol, timestampCol);
-        importTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-
-        timestampCol.setSortType(TableColumn.SortType.DESCENDING);
-        importTable.getSortOrder().add(timestampCol);
-        importTable.sort();
-
-        ObservableList<SourceFile> items = FXCollections.observableArrayList();
-        importTable.setItems(items);
-
-        importedFiles.addListener((MapChangeListener<String, SourceFile>) change -> {
-            if (change.wasAdded()) {
-                items.add(change.getValueAdded());
-            }
-        });
-
-        try{
-            Map<String, SourceFile> dbFiles = db.getAllSourceFiles();
-            importedFiles.putAll(dbFiles);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        Thread refresh = new Thread(() -> {
-            while (true){
-                try{
-                    Thread.sleep(5000);
-                    Map<String, SourceFile> updated = db.getAllSourceFiles();
-                    Platform.runLater(() -> {
-                        for (String key : updated.keySet()){
-                            if(!importedFiles.containsKey(key)){
-                                importedFiles.put(key, updated.get(key));
-                            }
-                        }
-                    });
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        refresh.setDaemon(true);
-        refresh.start();
-
-        return importTable;
-    }
 }
